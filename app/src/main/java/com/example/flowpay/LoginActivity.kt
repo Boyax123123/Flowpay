@@ -25,5 +25,11 @@ class LoginActivity : Activity() {
 
         }
 
+        val button_test: Button = findViewById<Button>(R.id.button_test)
+        button_test.setOnClickListener {
+            val intent = Intent(this, TestingActivity::class.java)
+            startActivity(intent)  // Start the RegisterActivity
+        }
+
     }
 }
