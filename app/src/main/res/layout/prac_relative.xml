@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="75px"
+    android:background="#F3FCFF"
+    >
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <!--        android:background="#f5dcf7">-->
+
+        <ImageView
+            android:id="@+id/icon_profile"
+            android:layout_width="135dp"
+            android:layout_height="135dp"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="50dp"
+            android:layout_marginBottom="25dp"
+            android:src="@drawable/icon_profile" />
+
+        <TextView
+            android:id="@+id/username"
+            android:layout_width="450dp"
+            android:layout_height="45dp"
+            android:layout_below="@+id/icon_profile"
+            android:gravity="center"
+            android:text="FirstName LastName"
+            android:layout_marginBottom="35dp"
+            android:textSize="25dp" />
+
+        <TextView
+            android:id="@+id/user_wishlist"
+            android:layout_width="450dp"
+            android:layout_height="45dp"
+            android:layout_below="@+id/user_wallet"
+            android:gravity="center"
+            android:text="Wishlist"
+            android:textSize="25dp"
+            android:layout_marginBottom="15dp"/>
+        <TextView
+            android:id="@+id/user_wallet"
+            android:layout_width="450dp"
+            android:layout_height="45dp"
+            android:layout_below="@+id/username"
+            android:gravity="center"
+            android:text="Wallet"
+            android:textSize="25dp"
+            android:layout_marginBottom="15dp"/>
+
+
+        <TextView
+            android:id="@+id/userinfo"
+            android:layout_width="450dp"
+            android:layout_height="45dp"
+            android:layout_below="@+id/user_wishlist"
+            android:gravity="center"
+            android:text="Account Information"
+            android:textSize="25dp"
+            android:layout_marginBottom="15dp"/>
+
+
+
+
+    </RelativeLayout>
+
+
+</RelativeLayout>
