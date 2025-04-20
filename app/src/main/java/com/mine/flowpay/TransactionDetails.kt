@@ -56,6 +56,8 @@ class TransactionDetails : AppCompatActivity() {
                 productNameView.text = transaction.type
                 priceView.text = "₱${transaction.amount}"
                 transactionIdView.text = transaction.transaction_id.toString()
+                // Use transaction type as category
+                categoryView.text = transaction.type
 
                 // Format date
                 val dateFormat = SimpleDateFormat("MM/dd/yy HH:mm", Locale.getDefault())

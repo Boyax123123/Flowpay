@@ -10,6 +10,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.mine.flowpay.app.FlowpayApp
 import com.mine.flowpay.data.Users
 import com.mine.flowpay.viewmodel.UserViewModel
+import java.text.NumberFormat
+import java.util.*
 
 class ProfileActivity : AppCompatActivity() {
     // ... existing properties ...
@@ -31,6 +33,18 @@ class ProfileActivity : AppCompatActivity() {
 
         logoutMenu.setOnClickListener {
             showLogoutConfirmationDialog()
+        }
+
+        btnCashIn.setOnClickListener {
+            val amountText = editAmount.text.toString()
+            val amount = amountText.toDoubleOrNull() ?: 0.0
+            val newBalance = currentBalance + amount
+            
+            if (newBalance > 1000000) {
+                Toast.makeText(this, "Balance limit is 1,000,000", Toast.LENGTH_SHORT).show()
+            } else {
+                // Proceed with cash in logic
+            }
         }
     }
 
@@ -65,4 +79,21 @@ class ProfileActivity : AppCompatActivity() {
 
         dialog.show()
     }
-} 
+
+    // Implement balance logic with max limit and formatted display
+    private fun updateBalance(newBalance: Double) {
+        if (newBalance > 1000000) {
+            Toast.makeText(this, "Balance max limit at 1,000,000", Toast.LENGTH_SHORT).show()
+        } else {
+            // Update balance logic here
+        }
+    }
+
+    private fun formatNumber(number: Double): String {
+        return NumberFormat.getNumberInstance(Locale.US).format(number)
+    }
+
+    // Update balance display
+    balanceView.text = formatNumber(currentBalance)
+    editAmount.setText(formatNumber(0.0))
+}

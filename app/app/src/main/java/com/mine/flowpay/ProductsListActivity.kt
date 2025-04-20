@@ -87,6 +87,8 @@ class ProductsListActivity : AppCompatActivity() {
             recyclerView.adapter = ProductAdapter(sortedProducts) { product ->
                 onProductSelected(product)
             }
+            // Ensure all products are displayed
+            recyclerView.adapter?.notifyDataSetChanged()
         }
 
         // Observe user balance

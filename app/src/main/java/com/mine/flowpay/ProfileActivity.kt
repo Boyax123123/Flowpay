@@ -59,7 +59,6 @@ class ProfileActivity : AppCompatActivity() {
     private fun initializeViews() {
         // Find views by ID
         usernameTextView = findViewById(R.id.text_username)
-        editButton = findViewById(R.id.btn_edit)
         balanceTextView = findViewById(R.id.text_balance)
         amountEditText = findViewById(R.id.edit_amount)
         cashInButton = findViewById(R.id.btn_cash_in)
@@ -76,16 +75,12 @@ class ProfileActivity : AppCompatActivity() {
     private fun updateUI() {
         // Set username and balance
         usernameTextView.text = currentUser.username
-        balanceTextView.text = "₱${currentUser.walletBalance}"
+        // Format wallet balance with commas and two decimal points
+        val formattedBalance = String.format("%,.2f", currentUser.walletBalance)
+        balanceTextView.text = "₱$formattedBalance"
     }
 
     private fun setupClickListeners() {
-        // Edit button click
-        editButton.setOnClickListener {
-            // TODO: Implement edit profile functionality
-            Toast.makeText(this, "Edit profile functionality coming soon", Toast.LENGTH_SHORT).show()
-        }
-
         // Cash in button click
         cashInButton.setOnClickListener {
             val amountText = amountEditText.text.toString()
@@ -93,21 +88,26 @@ class ProfileActivity : AppCompatActivity() {
                 try {
                     val amount = amountText.toDouble()
                     if (amount > 0) {
-                        // Update wallet balance
+                        // Check if new balance would exceed 1,000,000
                         val newBalance = currentUser.walletBalance + amount
-                        userViewModel.updateWalletBalance(currentUser.user_id, newBalance)
+                        if (newBalance > 1000000) {
+                            Toast.makeText(this, "Balance limit is 1,000,000", Toast.LENGTH_SHORT).show()
+                        } else {
+                            // Update wallet balance
+                            userViewModel.updateWalletBalance(currentUser.user_id, newBalance)
 
-                        // Update current user in memory
-                        currentUser.walletBalance = newBalance
-                        (application as FlowpayApp).loggedInuser = currentUser
+                            // Update current user in memory
+                            currentUser.walletBalance = newBalance
+                            (application as FlowpayApp).loggedInuser = currentUser
 
-                        // Update UI
-                        updateUI()
+                            // Update UI
+                            updateUI()
 
-                        // Clear input field
-                        amountEditText.text.clear()
+                            // Clear input field
+                            amountEditText.text.clear()
 
-                        Toast.makeText(this, "Successfully added ₱$amount to your wallet", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Successfully added ₱$amount to your wallet", Toast.LENGTH_SHORT).show()
+                        }
                     } else {
                         Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
                     }
@@ -158,8 +158,8 @@ class ProfileActivity : AppCompatActivity() {
             onConfirm = {
                 // Clear logged in user
                 (application as FlowpayApp).loggedInuser = null
-                // Navigate to login screen
-                startActivity(Intent(this@ProfileActivity, LoginActivity::class.java))
+                // Navigate to main screen
+                startActivity(Intent(this@ProfileActivity, MainActivity::class.java))
                 finish()
             }
         )

@@ -88,7 +88,7 @@ class LikesActivity : AppCompatActivity() {
         // Set wallet balance
         val user = app.loggedInuser
         if (user != null) {
-            walletBalanceView.text = "₱${user.walletBalance}"
+            walletBalanceView.text = "₱${String.format("%,.2f", user.walletBalance)}"
         }
 
         // Set up click listeners
@@ -181,7 +181,7 @@ Best regards,
                             }
 
                             runOnUiThread {
-                                walletBalanceView.text = "₱${user.walletBalance}"
+                                walletBalanceView.text = "₱${String.format("%,.2f", user.walletBalance)}"
                                 confirmationPanel.visibility = View.GONE
                                 Toast.makeText(this@LikesActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
                             }

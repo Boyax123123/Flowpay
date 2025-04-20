@@ -1,12 +1,14 @@
 package com.mine.flowpay.fragments
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.mine.flowpay.HomeActivity
 import com.mine.flowpay.LikesActivity
@@ -26,6 +28,11 @@ class NavbarFragment : Fragment() {
     private lateinit var likesIcon: ImageView
     private lateinit var profileIcon: ImageView
 
+    private lateinit var homeText: TextView
+    private lateinit var searchText: TextView
+    private lateinit var likesText: TextView
+    private lateinit var profileText: TextView
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -43,6 +50,11 @@ class NavbarFragment : Fragment() {
         searchIcon = view.findViewById(R.id.searchIcon)
         likesIcon = view.findViewById(R.id.likesIcon)
         profileIcon = view.findViewById(R.id.profileIcon)
+
+        homeText = view.findViewById(R.id.homeText)
+        searchText = view.findViewById(R.id.searchText)
+        likesText = view.findViewById(R.id.likesText)
+        profileText = view.findViewById(R.id.profileText)
 
         // Set click listeners
         homeNavItem.setOnClickListener {
@@ -98,12 +110,30 @@ class NavbarFragment : Fragment() {
         likesIcon.setImageResource(R.drawable.ic_heart)
         profileIcon.setImageResource(R.drawable.ic_profile)
 
-        // Set the appropriate icon to green based on current activity
+        // Reset all text colors to default
+        homeText.setTextColor(Color.BLACK)
+        searchText.setTextColor(Color.BLACK)
+        likesText.setTextColor(Color.BLACK)
+        profileText.setTextColor(Color.BLACK)
+
+        // Set the appropriate icon and text color to green based on current activity
         when (activity) {
-            is HomeActivity -> homeIcon.setImageResource(R.drawable.ic_home_green)
-            is SearchActivity -> searchIcon.setImageResource(R.drawable.ic_search_green)
-            is LikesActivity -> likesIcon.setImageResource(R.drawable.ic_heart_green)
-            is ProfileActivity -> profileIcon.setImageResource(R.drawable.ic_profile_green)
+            is HomeActivity -> {
+                homeIcon.setImageResource(R.drawable.ic_home_green)
+                homeText.setTextColor(Color.parseColor("#00CA63"))
+            }
+            is SearchActivity -> {
+                searchIcon.setImageResource(R.drawable.ic_search_green)
+                searchText.setTextColor(Color.parseColor("#00CA63"))
+            }
+            is LikesActivity -> {
+                likesIcon.setImageResource(R.drawable.ic_heart_green)
+                likesText.setTextColor(Color.parseColor("#00CA63"))
+            }
+            is ProfileActivity -> {
+                profileIcon.setImageResource(R.drawable.ic_profile_green)
+                profileText.setTextColor(Color.parseColor("#00CA63"))
+            }
         }
     }
 }

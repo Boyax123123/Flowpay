@@ -93,7 +93,9 @@ class ProductsListActivity : AppCompatActivity() {
         // Set initial wallet balance
         val user = (application as FlowpayApp).loggedInuser
         if (user != null) {
-            walletBalanceView.text = "₱${user.walletBalance}"
+            // Update balance display with commas and two decimal points
+            val formattedBalance = String.format("%,.2f", user.walletBalance)
+            walletBalanceView.text = "₱$formattedBalance"
         }
 
         // Set up click listeners
@@ -206,7 +208,9 @@ Best regards,
                             }
 
                             runOnUiThread {
-                                walletBalanceView.text = "₱${user.walletBalance}"
+                                // Update balance display with commas and two decimal points
+                                val formattedBalance = String.format("%,.2f", user.walletBalance)
+                                walletBalanceView.text = "₱$formattedBalance"
                                 confirmationPanel.visibility = View.GONE
                                 Toast.makeText(this@ProductsListActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
                             }

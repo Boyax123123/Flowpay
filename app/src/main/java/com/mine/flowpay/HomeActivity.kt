@@ -48,8 +48,10 @@ class HomeActivity : AppCompatActivity() {
         walletIcon = findViewById(R.id.wallet_icon)
         mailIcon = findViewById(R.id.mail_icon)
 
-        // Set wallet balance
-        walletBalanceView.text = "₱${app.loggedInuser?.walletBalance ?: 0.0}"
+        // Set wallet balance with commas and two decimal points
+        val balance = app.loggedInuser?.walletBalance ?: 0.0
+        val formattedBalance = String.format("%,.2f", balance)
+        walletBalanceView.text = "₱$formattedBalance"
 
         // Set up wallet icon click listener
         walletIcon.setOnClickListener {
