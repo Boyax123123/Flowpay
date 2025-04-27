@@ -40,4 +40,9 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     fun createTransaction(transaction: Transaction) = viewModelScope.launch {
         repository.createTransaction(transaction)
     }
+    
+    // Expose the repository for SortButtonsHandler
+    fun getTransactionRepository(): TransactionRepository {
+        return repository
+    }
 }

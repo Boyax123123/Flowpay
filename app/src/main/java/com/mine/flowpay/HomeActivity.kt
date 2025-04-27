@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -44,8 +45,8 @@ class HomeActivity : AppCompatActivity() {
 
         // Initialize views
         recyclerView = findViewById(R.id.rv_game_categories)
-        walletBalanceView = findViewById(R.id.tv_wallet_balance)
-        walletIcon = findViewById(R.id.wallet_icon)
+        walletBalanceView = findViewById(R.id.tv_balance)
+        walletIcon = findViewById(R.id.iv_wallet)
         mailIcon = findViewById(R.id.mail_icon)
 
         // Set wallet balance with commas and two decimal points
@@ -55,7 +56,7 @@ class HomeActivity : AppCompatActivity() {
 
         // Set up wallet icon click listener
         walletIcon.setOnClickListener {
-            startActivity(Intent(this, ProfileActivity::class.java))
+            startActivity(Intent(this, WalletActivity::class.java))
         }
 
         // Set up mail icon click listener
@@ -82,26 +83,29 @@ class HomeActivity : AppCompatActivity() {
         // Set up RecyclerView
         recyclerView.layoutManager = GridLayoutManager(this, 2) // 2 columns
 
-        // Get categories and set up adapter
-        val categories = viewModel.allCategories
-        if (categories.isNotEmpty()) {
-            Log.d("HomeActivity", "Categories loaded: ${categories.size}")
-            categories.forEach { category ->
-                Log.d("HomeActivity", "Category: ${category.category_name}, Image: ${category.image}")
-                // Verify that the image resource exists
-                try {
-                    resources.getResourceName(category.image)
-                    Log.d("HomeActivity", "Image resource exists: ${resources.getResourceName(category.image)}")
-                } catch (e: Exception) {
-                    Log.e("HomeActivity", "Image resource does not exist: ${category.image}", e)
+        // Observe categories and set up adapter
+        viewModel.allCategories.observe(this, Observer { categories ->
+            if (!categories.isNullOrEmpty()) {
+                Log.d("HomeActivity", "Categories loaded: ${categories.size}")
+                categories.forEach { category ->
+                    Log.d("HomeActivity", "Category: ${category.category_name}, Image: ${category.image}")
+                    try {
+                        val resourceId = resources.getIdentifier(category.image, "drawable", packageName)
+                        Log.d("HomeActivity", "Image resource ID: $resourceId")
+                        if (resourceId != 0) {
+                            Log.d("HomeActivity", "Image resource exists")
+                        } else {
+                            Log.e("HomeActivity", "Image resource does not exist: ${category.image}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("HomeActivity", "Error finding resource: ${e.message}", e)
+                    }
                 }
+                recyclerView.adapter = GameCategoryAdapter(categories)
+            } else {
+                Log.e("HomeActivity", "No categories found")
             }
-
-            // Set up adapter
-            recyclerView.adapter = GameCategoryAdapter(categories)
-        } else {
-            Log.e("HomeActivity", "No categories found")
-        }
+        })
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -111,8 +115,6 @@ class HomeActivity : AppCompatActivity() {
             mailViewModel.updateUnreadMailCount()
         }
     }
-
-
 
     private fun updateMailIcon(unreadCount: Int, hasPurchaseMail: Boolean) {
         if (unreadCount > 0) {
@@ -147,22 +149,27 @@ class HomeActivity : AppCompatActivity() {
 
         // Check each category
         categories.forEach { category ->
-            Log.d("HomeActivity", "DB Category: ${category.category_name}, Image ID: ${category.image}")
+            Log.d("HomeActivity", "DB Category: ${category.category_name}, Image: ${category.image}")
 
             // Verify image resource exists
             try {
-                val resourceName = resources.getResourceName(category.image)
-                Log.d("HomeActivity", "Resource exists: $resourceName")
-
-                // Try to load the drawable
-                try {
-                    val drawable = resources.getDrawable(category.image, theme)
-                    Log.d("HomeActivity", "Drawable loaded successfully for ${category.category_name}")
-                } catch (e: Exception) {
-                    Log.e("HomeActivity", "Failed to load drawable for ${category.category_name}: ${e.message}", e)
+                val resourceId = resources.getIdentifier(category.image, "drawable", packageName)
+                Log.d("HomeActivity", "Image resource ID: $resourceId")
+                if (resourceId != 0) {
+                    Log.d("HomeActivity", "Resource exists")
+                    
+                    // Try to load the drawable
+                    try {
+                        val drawable = resources.getDrawable(resourceId, theme)
+                        Log.d("HomeActivity", "Drawable loaded successfully for ${category.category_name}")
+                    } catch (e: Exception) {
+                        Log.e("HomeActivity", "Failed to load drawable for ${category.category_name}: ${e.message}", e)
+                    }
+                } else {
+                    Log.e("HomeActivity", "Resource does not exist for ${category.category_name}: ${category.image}")
                 }
             } catch (e: Exception) {
-                Log.e("HomeActivity", "Resource does not exist for ${category.category_name}: ${e.message}", e)
+                Log.e("HomeActivity", "Error finding resource: ${e.message}", e)
             }
         }
     }

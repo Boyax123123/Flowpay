@@ -3,6 +3,7 @@ package com.mine.flowpay
 import android.content.Intent
 import android.os.Bundle
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -10,6 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.mine.flowpay.adapters.TransactionAdapter
 import com.mine.flowpay.app.FlowpayApp
+import com.mine.flowpay.fragments.NavbarFragment
 import com.mine.flowpay.viewmodel.TransactionViewModel
 
 class TransactionActivity : AppCompatActivity() {
@@ -51,9 +53,14 @@ class TransactionActivity : AppCompatActivity() {
             }
         })
         
-        // Set up back button
-        backButton.setOnClickListener {
-            finish()
-        }
+        // Set header title and back button
+        val headerTitle = findViewById<TextView>(R.id.tv_header_title)
+        headerTitle.text = "Transactions"
+        findViewById<ImageView>(R.id.iv_back).setOnClickListener { onBackPressed() }
+
+        // Set up navbar
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.navbar_container, NavbarFragment())
+            .commit()
     }
 }

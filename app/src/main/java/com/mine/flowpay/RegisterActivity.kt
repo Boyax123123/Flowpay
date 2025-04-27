@@ -17,6 +17,7 @@ import com.mine.flowpay.data.Users
 import com.mine.flowpay.data.database.AppDatabase
 import com.mine.flowpay.data.repository.UserRepository
 import com.mine.flowpay.app.FlowpayApp
+import android.text.InputType
 
 class RegisterActivity : AppCompatActivity() {
     private lateinit var btnRegister: Button
@@ -57,6 +58,10 @@ class RegisterActivity : AppCompatActivity() {
         val iconMinLength = findViewById<ImageView>(R.id.icon_min_length)
         val iconLettersNumbersSpecial = findViewById<ImageView>(R.id.icon_letters_numbers_special)
 
+        // Password visibility toggles
+        val passwordToggle = findViewById<ImageView>(R.id.password_visibility_toggle)
+        val confirmPasswordToggle = findViewById<ImageView>(R.id.confirm_password_visibility_toggle)
+
         // Initially hide error messages and disable button
         emailError.text = ""
         usernameError.text = ""
@@ -68,6 +73,37 @@ class RegisterActivity : AppCompatActivity() {
         usernameError.setTextColor(getColor(R.color.error_text))
         confirmPasswordError.setTextColor(getColor(R.color.error_text))
 
+        // Password visibility toggles
+        passwordToggle.setOnClickListener {
+            // Toggle password visibility
+            if (txtPassword.inputType == (InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)) {
+                // Hide password
+                txtPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                passwordToggle.setImageResource(R.drawable.ic_hide)
+            } else {
+                // Show password
+                txtPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                passwordToggle.setImageResource(R.drawable.ic_unhide)
+            }
+            // Move cursor to the end
+            txtPassword.setSelection(txtPassword.text.length)
+        }
+
+        confirmPasswordToggle.setOnClickListener {
+            // Toggle confirm password visibility
+            if (txtConfirmPassword.inputType == (InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)) {
+                // Hide password
+                txtConfirmPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                confirmPasswordToggle.setImageResource(R.drawable.ic_hide)
+            } else {
+                // Show password
+                txtConfirmPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                confirmPasswordToggle.setImageResource(R.drawable.ic_unhide)
+            }
+            // Move cursor to the end
+            txtConfirmPassword.setSelection(txtConfirmPassword.text.length)
+        }
+
         // Email validation
         txtEmail.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -75,11 +111,17 @@ class RegisterActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {
                 val email = s.toString().lowercase()
                 // First check: Valid email format
-                if (!isValidEmail(email)) {
+                if (email.isEmpty()) {
+                    emailError.text = "Email is required"
+                    emailIsGood = false
+                    updateButtonState()
+                } else if (!isValidEmail(email)) {
                     emailError.text = "Invalid Email"
                     emailIsGood = false
+                    updateButtonState()
                 } else {
                     // Second check: Email already registered
+                    lifecycleScope.launch {
                     val existingUser = userRepository.getUserByEmail(email)
                     if (existingUser != null) {
                         emailError.text = "Email already registered"
@@ -87,9 +129,10 @@ class RegisterActivity : AppCompatActivity() {
                     } else {
                         emailError.text = ""
                         emailIsGood = true
+                        }
+                        updateButtonState()
                     }
                 }
-                updateButtonState()
             }
         })
 
@@ -102,7 +145,9 @@ class RegisterActivity : AppCompatActivity() {
                 if (username.isEmpty()) {
                     usernameError.text = "Username is required"
                     usernameIsGood = false
+                    updateButtonState()
                 } else {
+                    lifecycleScope.launch {
                     val existingUser = userRepository.getUserByUsername(username)
                     if (existingUser != null) {
                         usernameError.text = "Username already taken"
@@ -110,9 +155,10 @@ class RegisterActivity : AppCompatActivity() {
                     } else {
                         usernameError.text = ""
                         usernameIsGood = true
+                        }
+                        updateButtonState()
                     }
                 }
-                updateButtonState()
             }
         })
 
@@ -139,14 +185,57 @@ class RegisterActivity : AppCompatActivity() {
 
         // Register button click
         btnRegister.setOnClickListener {
+            val email = txtEmail.text.toString().lowercase()
+            val username = txtUsername.text.toString()
+            val password = txtPassword.text.toString()
+            
+            lifecycleScope.launch {
+                // Final validation before registration
+                var isValid = true
+                
+                // Check email
+                if (!isValidEmail(email)) {
+                    emailError.text = "Invalid Email"
+                    emailIsGood = false
+                    isValid = false
+                } else {
+                    val existingUserByEmail = userRepository.getUserByEmail(email)
+                    if (existingUserByEmail != null) {
+                        emailError.text = "Email already registered"
+                        emailIsGood = false
+                        isValid = false
+                    }
+                }
+                
+                // Check username
+                if (username.isEmpty()) {
+                    usernameError.text = "Username is required"
+                    usernameIsGood = false
+                    isValid = false
+                } else {
+                    val existingUserByUsername = userRepository.getUserByUsername(username)
+                    if (existingUserByUsername != null) {
+                        usernameError.text = "Username already taken"
+                        usernameIsGood = false
+                        isValid = false
+                    }
+                }
+                
+                // Update button state in case validation failed
+                updateButtonState()
+                
+                // Proceed with registration if everything is valid
+                if (isValid && passwordIsGood && confirmPasswordIsGood) {
             val newUser = Users(
-                email = txtEmail.text.toString().lowercase(),
-                username = txtUsername.text.toString(),
-                password = txtPassword.text.toString()
+                        email = email,
+                        username = username,
+                        password = password
             )
             userRepository.insertUser(newUser)
             startActivity(Intent(this@RegisterActivity, LoginActivity::class.java))
             finish()
+                }
+            }
         }
 
         // Redirect to login page

@@ -2,6 +2,7 @@ package com.mine.flowpay
 
 import android.os.Bundle
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.mine.flowpay.fragments.NavbarFragment
 
@@ -14,6 +15,10 @@ class AboutUsActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.navbar_container, NavbarFragment())
             .commit()
+
+        // Set header title
+        val headerTitle = findViewById<TextView>(R.id.tv_header_title)
+        headerTitle.text = "About Us"
 
         // Set up back button
         findViewById<ImageView>(R.id.iv_back).setOnClickListener {

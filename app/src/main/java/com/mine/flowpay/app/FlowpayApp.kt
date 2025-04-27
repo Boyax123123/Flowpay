@@ -45,6 +45,7 @@ class FlowpayApp : Application() {
         // Initialize categories and products
         DatabaseInitializer.initializeCategories(database.categoryDao())
         DatabaseInitializer.initializeProducts(database.productDao(), database.categoryDao())
+        DatabaseInitializer.initializeAutoAccount(database.userDao())
 
         // Restore login state
         val userId = sessionManager.getUserId()

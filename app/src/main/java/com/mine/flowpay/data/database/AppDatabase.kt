@@ -14,9 +14,10 @@ import com.mine.flowpay.data.*
         ProductCategory::class,
         Transaction::class,
         Mail::class,
-        Wishlist::class
+        Wishlist::class,
+        Deposit::class
     ],
-    version = 3
+    version = 5
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
@@ -25,6 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun mailDao(): MailDao
     abstract fun wishlistDao(): WishlistDao
+    abstract fun depositDao(): DepositDao
 
     fun keepDatabaseAlive() {
         userDao().getAllUsers()

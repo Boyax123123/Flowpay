@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import androidx.cardview.widget.CardView
 import androidx.lifecycle.ViewModelProvider
 import com.mine.flowpay.app.FlowpayApp
 import com.mine.flowpay.utils.DialogUtils
@@ -17,12 +16,11 @@ class ProfileActivity : AppCompatActivity() {
 
     // UI components
     private lateinit var usernameTextView: TextView
-    private lateinit var editButton: TextView
     private lateinit var balanceTextView: TextView
-    private lateinit var amountEditText: EditText
-    private lateinit var cashInButton: Button
+    private lateinit var emailTextView: TextView
 
     // Menu items
+    private lateinit var walletMenu: LinearLayout
     private lateinit var mailsMenu: LinearLayout
     private lateinit var transactionsMenu: LinearLayout
     private lateinit var wishlistMenu: LinearLayout
@@ -60,10 +58,10 @@ class ProfileActivity : AppCompatActivity() {
         // Find views by ID
         usernameTextView = findViewById(R.id.text_username)
         balanceTextView = findViewById(R.id.text_balance)
-        amountEditText = findViewById(R.id.edit_amount)
-        cashInButton = findViewById(R.id.btn_cash_in)
+        emailTextView = findViewById(R.id.tv_email)
 
         // Menu items
+        walletMenu = findViewById(R.id.menu_wallet)
         mailsMenu = findViewById(R.id.menu_mails)
         transactionsMenu = findViewById(R.id.menu_transactions)
         wishlistMenu = findViewById(R.id.menu_wishlist)
@@ -78,90 +76,52 @@ class ProfileActivity : AppCompatActivity() {
         // Format wallet balance with commas and two decimal points
         val formattedBalance = String.format("%,.2f", currentUser.walletBalance)
         balanceTextView.text = "₱$formattedBalance"
+        // Set user email
+        emailTextView.text = currentUser.email
     }
 
     private fun setupClickListeners() {
-        // Cash in button click
-        cashInButton.setOnClickListener {
-            val amountText = amountEditText.text.toString()
-            if (amountText.isNotEmpty()) {
-                try {
-                    val amount = amountText.toDouble()
-                    if (amount > 0) {
-                        // Check if new balance would exceed 1,000,000
-                        val newBalance = currentUser.walletBalance + amount
-                        if (newBalance > 1000000) {
-                            Toast.makeText(this, "Balance limit is 1,000,000", Toast.LENGTH_SHORT).show()
-                        } else {
-                            // Update wallet balance
-                            userViewModel.updateWalletBalance(currentUser.user_id, newBalance)
-
-                            // Update current user in memory
-                            currentUser.walletBalance = newBalance
-                            (application as FlowpayApp).loggedInuser = currentUser
-
-                            // Update UI
-                            updateUI()
-
-                            // Clear input field
-                            amountEditText.text.clear()
-
-                            Toast.makeText(this, "Successfully added ₱$amount to your wallet", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: NumberFormatException) {
-                    Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                Toast.makeText(this, "Please enter an amount", Toast.LENGTH_SHORT).show()
-            }
+        // Wallet menu click
+        walletMenu.setOnClickListener {
+            startActivity(Intent(this, WalletActivity::class.java))
         }
 
         // Menu item clicks
         mailsMenu.setOnClickListener {
-            // Navigate to mails screen
             startActivity(Intent(this, MailsActivity::class.java))
         }
 
         transactionsMenu.setOnClickListener {
-            // Navigate to transactions screen
             startActivity(Intent(this, TransactionActivity::class.java))
         }
 
         wishlistMenu.setOnClickListener {
-            // Navigate to likes/wishlist screen
             startActivity(Intent(this, LikesActivity::class.java))
         }
 
         searchMenu.setOnClickListener {
-            // Navigate to search screen
             startActivity(Intent(this, SearchActivity::class.java))
         }
 
         settingsMenu.setOnClickListener {
-            // Navigate to settings screen
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         logoutMenu.setOnClickListener {
-            showLogoutConfirmationDialog()
-        }
-    }
-
-    private fun showLogoutConfirmationDialog() {
+            // Show logout confirmation dialog
         DialogUtils.showCustomConfirmationDialog(
-            context = this,
-            title = "Logout",
-            message = "Are you sure you want to log out?",
-            onConfirm = {
-                // Clear logged in user
+                this,
+                "Logout",
+                "Are you sure you want to logout?",
+                {
+                    // Log out the user
                 (application as FlowpayApp).loggedInuser = null
-                // Navigate to main screen
-                startActivity(Intent(this@ProfileActivity, MainActivity::class.java))
+                    
+                    // Navigate to login screen
+                    startActivity(Intent(this, LoginActivity::class.java))
                 finish()
             }
         )
+        }
     }
 }

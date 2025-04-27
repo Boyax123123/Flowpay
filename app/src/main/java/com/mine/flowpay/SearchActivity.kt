@@ -1,7 +1,9 @@
 package com.mine.flowpay
 
+import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -31,6 +33,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.mine.flowpay.utils.SortButtonsHandler
+import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.view.inputmethod.InputMethodManager
+import android.text.TextWatcher
+import android.text.Editable
+import android.view.LayoutInflater
+import android.view.Window
 
 class SearchActivity : AppCompatActivity() {
     companion object {
@@ -46,8 +57,10 @@ class SearchActivity : AppCompatActivity() {
 
     private lateinit var searchInput: EditText
     private lateinit var searchIcon: ImageView
+    private lateinit var clearSearchButton: ImageView
     private lateinit var recyclerView: RecyclerView
     private lateinit var contentContainer: View
+    private lateinit var emptyStateContainer: View
     private lateinit var walletBalanceView: TextView
     private lateinit var walletIcon: ImageView
     private lateinit var mailIcon: ImageView
@@ -62,6 +75,8 @@ class SearchActivity : AppCompatActivity() {
     private val searchResults = mutableListOf<Product>()
     private val categoryResults = mutableListOf<ProductCategory>()
     private var selectedProduct: Product? = null
+
+    private lateinit var sortButtonsHandler: SortButtonsHandler
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,10 +97,12 @@ class SearchActivity : AppCompatActivity() {
         // Initialize views
         searchInput = findViewById(R.id.search_input)
         searchIcon = findViewById(R.id.search_icon)
+        clearSearchButton = findViewById(R.id.clear_search_button)
         recyclerView = RecyclerView(this)
         contentContainer = findViewById(R.id.content_container)
-        walletBalanceView = findViewById(R.id.tv_wallet_balance)
-        walletIcon = findViewById(R.id.wallet_icon)
+        emptyStateContainer = findViewById(R.id.empty_state_container)
+        walletBalanceView = findViewById(R.id.tv_balance)
+        walletIcon = findViewById(R.id.iv_wallet)
         mailIcon = findViewById(R.id.mail_icon)
         confirmationPanel = findViewById(R.id.confirmation_panel)
         selectedProductView = findViewById(R.id.tv_selected_product)
@@ -102,6 +119,7 @@ class SearchActivity : AppCompatActivity() {
         // Initially hide confirmation panel and error message
         confirmationPanel.visibility = View.GONE
         errorMessageView.visibility = View.GONE
+        emptyStateContainer.visibility = View.GONE
 
         // Set wallet balance
         val user = app.loggedInuser
@@ -111,7 +129,7 @@ class SearchActivity : AppCompatActivity() {
 
         // Set up click listeners
         walletIcon.setOnClickListener {
-            startActivity(Intent(this, ProfileActivity::class.java))
+            startActivity(Intent(this, WalletActivity::class.java))
         }
 
         mailIcon.setOnClickListener {
@@ -133,99 +151,40 @@ class SearchActivity : AppCompatActivity() {
 
         // Set up buy button
         buyButton.setOnClickListener {
-            selectedProduct?.let { product ->
-                val user = (application as FlowpayApp).loggedInuser
-                if (user != null && user.walletBalance >= product.price) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val database = (application as FlowpayApp).database
-
-                            // Create transaction
-                            val transaction = Transaction(
-                                userId = currentUserId,
-                                type = product.productName,
-                                amount = product.price,
-                                timestamp = System.currentTimeMillis()
-                            )
-
-                            // Insert transaction
-                            withContext(Dispatchers.IO) {
-                                transactionViewModel.createTransaction(transaction)
-                            }
-
-                            // Get transaction ID
-                            val transactionId = withContext(Dispatchers.IO) {
-                                database.transactionDao().getLastTransactionForUser(currentUserId).transaction_id
-                            }
-
-                            // Update user balance
-                            user.walletBalance -= product.price
-                            withContext(Dispatchers.IO) {
-                                userViewModel.updateUser(user)
-                            }
-
-                            // Get category name
-                            val category = withContext(Dispatchers.IO) {
-                                productViewModel.getCategoryById(product.category_id)
-                            }
-                            val categoryName = category?.category_name ?: "Unknown"
-
-                            // Generate random code
-                            val code = generateRandomCode()
-
-                            // Create mail
-                            val mail = Mail(
-                                user_id = currentUserId,
-                                transaction_id = transactionId,
-                                subject = "Purchase of ${categoryName}'s ${product.productName}",
-                                message = """Hi there,
-Thanks for your recent purchase of ${product.productName} from ${categoryName}. We hope you enjoy your experience!
-
-Heres the code for your game:
-Code: ${code}
-
-Use this code to top up your account!
-
-Best regards,
-— The FlowPay Team""",
-                                timestamp = System.currentTimeMillis(),
-                                isRead = false
-                            )
-                            withContext(Dispatchers.IO) {
-                                mailViewModel.createMail(mail)
-                            }
-
-                            runOnUiThread {
-                                walletBalanceView.text = "₱${String.format("%,.2f", user.walletBalance)}"
-                                confirmationPanel.visibility = View.GONE
-                                Toast.makeText(this@SearchActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
-                            }
-                        } catch (e: Exception) {
-                            runOnUiThread {
-                                Toast.makeText(this@SearchActivity, "Error processing purchase", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                } else {
-                    Toast.makeText(this, "Insufficient balance", Toast.LENGTH_SHORT).show()
-                }
-            }
+            purchaseSelectedProduct()
         }
-
+        
         // Set up search functionality
         searchInput.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
             ) {
+                Log.d("SearchActivity", "Search action triggered from keyboard")
                 performSearch(searchInput.text.toString())
-                return@setOnEditorActionListener true
+                true
+            } else {
+                false
             }
-            return@setOnEditorActionListener false
         }
 
         searchIcon.setOnClickListener {
+            Log.d("SearchActivity", "Search action triggered from search icon")
             performSearch(searchInput.text.toString())
         }
+        
+        // Set up clear search button
+        clearSearchButton.setOnClickListener {
+            clearSearch()
+        }
+        
+        // Add text change listener to search input (toggle clear button only)
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                clearSearchButton.visibility = if (s.isNullOrEmpty()) View.GONE else View.VISIBLE
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
 
         // Load user's wishlist
         wishlistViewModel.getUserWishlist(currentUserId)
@@ -246,50 +205,106 @@ Best regards,
 
         // Observe products
         productViewModel.allProducts.observe(this, Observer { products ->
-            // Store all products for searching
-            updateSearchResults()
+            Log.d("SearchActivity", "Products observed: ${products.size}")
+            // Store all products for initial display
+            if (searchInput.text.toString().isBlank()) {
+                searchResults.clear()
+                searchResults.addAll(products)
+                updateSearchResults()
+            }
+            
+            // Update sort buttons with all products
+            if (::sortButtonsHandler.isInitialized) {
+                sortButtonsHandler.updateProducts(products)
+            }
+        })
+        
+        // Set up sort buttons for product filtering
+        setupSortButtons()
+        
+        // Initialize with empty state if needed
+        updateEmptyState()
+
+        // Observe categories
+        categoryViewModel.allCategories.observe(this, Observer { categories ->
+            // Store categories for searching
+            if (!categories.isNullOrEmpty()) {
+                categoryResults.clear()
+                categoryResults.addAll(categories)
+                Log.d("SearchActivity", "Categories loaded: ${categories.size}")
+            } else {
+                Log.d("SearchActivity", "No categories found")
+            }
         })
     }
 
     private fun performSearch(query: String) {
+        Log.d("SearchActivity", "Performing search with query: $query")
+        
         if (query.isBlank()) {
-            Toast.makeText(this, "Please enter a search term", Toast.LENGTH_SHORT).show()
+            // If query is blank, show all products
+            productViewModel.allProducts.value?.let {
+                searchResults.clear()
+                searchResults.addAll(it)
+                updateSearchResults()
+            }
             return
         }
+        
+        // Search in products
+        productViewModel.allProducts.value?.let { allProducts ->
+            val filteredProducts = allProducts.filter { product ->
+                product.productName.contains(query, ignoreCase = true) ||
+                categoryResults.any { category ->
+                    category.category_name.contains(query, ignoreCase = true) &&
+                    category.category_id == product.category_id
+                }
+            }
+            Log.d("SearchActivity", "Found ${filteredProducts.size} products for search or category '$query'")
+            
+            if (filteredProducts.isEmpty()) {
+                // No results found - show empty state
+                searchResults.clear()
+                updateSearchResults()
+                updateEmptyState()
+            } else {
+                // Apply sort on filtered (search) results
+                sortButtonsHandler.updateProducts(filteredProducts, true)
+            }
+        }
+    }
 
-        // Filter products based on search query
+    private fun clearSearch() {
+        // Clear search input
+        searchInput.setText("")
+        
+        // Hide clear button
+        clearSearchButton.visibility = View.GONE
+        
+        // Load all products
         val allProducts = productViewModel.allProducts.value ?: emptyList()
         searchResults.clear()
-        searchResults.addAll(allProducts.filter { product ->
-            product.productName.contains(query, ignoreCase = true)
-        })
-
-        // Filter categories based on search query
-        val allCategories = categoryViewModel.allCategories
-        categoryResults.clear()
-        categoryResults.addAll(allCategories.filter { category ->
-            category.category_name.contains(query, ignoreCase = true)
-        })
-
-        // If we found categories but no products, get products from those categories
-        if (searchResults.isEmpty() && categoryResults.isNotEmpty()) {
-            // Get products for the first matching category
-            val category = categoryResults.first()
-            productViewModel.getProductsByCategory(category.category_id)
-
-            // Wait for the LiveData to update
-            productViewModel.allProducts.observe(this, object : Observer<List<Product>> {
-                override fun onChanged(products: List<Product>) {
-                    searchResults.clear()
-                    searchResults.addAll(products)
-                    updateSearchResults()
-                    // Remove the observer after one update
-                    productViewModel.allProducts.removeObserver(this)
-                }
-            })
+        searchResults.addAll(allProducts)
+        
+        // Update sort buttons with all products
+        if (::sortButtonsHandler.isInitialized) {
+            sortButtonsHandler.updateProducts(allProducts, false)
+        }
+        
+        // Update the UI
+        updateSearchResults()
+        updateEmptyState()
+    }
+    
+    private fun updateEmptyState() {
+        if (searchResults.isEmpty()) {
+            // Show empty state
+            emptyStateContainer.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
         } else {
-            // Update adapter immediately if we have product results or no results
-            updateSearchResults()
+            // Show results
+            emptyStateContainer.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
         }
     }
 
@@ -311,6 +326,9 @@ Best regards,
                 isInWishlist = { product -> wishlistedProducts.contains(product.product_id) }
             )
         }
+        
+        // Update empty state visibility
+        updateEmptyState()
     }
 
     private fun onCategorySelected(category: ProductCategory) {
@@ -325,26 +343,15 @@ Best regards,
 
     private fun onProductSelected(product: Product) {
         if (selectedProduct == product) {
-            // If the same product is selected, hide the panel and deselect
-            confirmationPanel.visibility = View.GONE
+            hideConfirmationPanel()
             selectedProduct = null
-            (recyclerView.adapter as? ProductAdapter)?.setSelectedProduct(null)
-        } else {
-            // Show confirmation panel
-            confirmationPanel.visibility = View.VISIBLE
-
-            // Update selected product info
-            selectedProduct = product
-            selectedProductView.text = "${product.productName} • E-Wallet"
-            selectedPriceView.text = "₱${product.price}"
-
-            // Update buy button state based on current balance
-            val user = (application as FlowpayApp).loggedInuser
-            if (user != null) {
-                updateBuyButtonState(user.walletBalance, product.price)
+            (recyclerView.adapter as? ProductAdapter)?.apply {
+                setSelectedProduct(null)
+                notifyDataSetChanged() // Force immediate UI update
             }
-
-            // Update product card background
+        } else {
+            showConfirmationPanel(product)
+            selectedProduct = product
             (recyclerView.adapter as? ProductAdapter)?.setSelectedProduct(product)
         }
     }
@@ -424,6 +431,156 @@ Best regards,
         mailViewModel.hasPurchaseMail.removeObservers(this)
         mailViewModel.hasPurchaseMail.observe(this) { hasPurchaseMail ->
             updateMailIcon(mailViewModel.unreadMailCount.value ?: 0, hasPurchaseMail)
+        }
+    }
+
+    private fun setupSortButtons() {
+        // Initialize sort buttons
+        val btnSortPopular = findViewById<Button>(R.id.btn_sort_popular)
+        val btnSortHighLow = findViewById<Button>(R.id.btn_sort_high_low)
+        val btnSortLowHigh = findViewById<Button>(R.id.btn_sort_low_high)
+        val btnSortAZ = findViewById<Button>(R.id.btn_sort_a_z)
+        
+        // Get transaction repository from TransactionViewModel
+        val app = application as FlowpayApp
+        val database = app.database
+        val transactionRepository = transactionViewModel.getTransactionRepository() ?: database.transactionDao()?.let {
+            com.mine.flowpay.data.repository.TransactionRepository(it)
+        }
+        
+        // Create the sort buttons handler
+        sortButtonsHandler = SortButtonsHandler(
+            btnSortPopular,
+            btnSortHighLow,
+            btnSortLowHigh,
+            btnSortAZ,
+            transactionRepository,
+        ) { sortedProducts ->
+            // Only update if we received non-empty sorted products
+            Log.d("SearchActivity", "Sort button handler returned ${sortedProducts.size} products")
+            
+            if (sortedProducts.isNotEmpty()) {
+                Log.d("SearchActivity", "Updating search results with sorted products")
+                searchResults.clear()
+                searchResults.addAll(sortedProducts)
+                updateSearchResults()
+            } else if (searchResults.isEmpty() && productViewModel.allProducts.value != null) {
+                // If search results are empty, use the products from the view model
+                Log.d("SearchActivity", "Using products from view model as fallback")
+                searchResults.clear()
+                searchResults.addAll(productViewModel.allProducts.value!!)
+                updateSearchResults()
+            } else {
+                Log.d("SearchActivity", "Keeping existing ${searchResults.size} search results")
+            }
+            // If sortedProducts is empty but searchResults already has items, we keep them
+        }
+        
+        // No button selected by default (will use MOST_RECENT sort)
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(searchInput.windowToken, 0)
+    }
+
+    private fun showConfirmationPanel(product: Product) {
+        confirmationPanel.visibility = View.VISIBLE
+        selectedProductView.text = product.productName
+        selectedPriceView.text = "₱${product.price}"
+        errorMessageView.visibility = View.GONE
+        val user = (application as FlowpayApp).loggedInuser
+        if (user != null && user.walletBalance >= product.price) {
+            buyButton.isEnabled = true
+            buyButton.alpha = 1.0f
+        } else {
+            buyButton.isEnabled = false
+            buyButton.alpha = 0.5f
+            errorMessageView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun hideConfirmationPanel() {
+        confirmationPanel.visibility = View.GONE
+    }
+
+    private fun purchaseSelectedProduct() {
+        selectedProduct?.let { product ->
+            val user = (application as FlowpayApp).loggedInuser
+            if (user != null && user.walletBalance >= product.price) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val database = (application as FlowpayApp).database
+
+                        // Create transaction
+                        val transaction = Transaction(
+                            userId = currentUserId,
+                            type = product.productName,
+                            amount = product.price,
+                            timestamp = System.currentTimeMillis()
+                        )
+
+                        // Insert transaction
+                        withContext(Dispatchers.IO) {
+                            transactionViewModel.createTransaction(transaction)
+                        }
+
+                        // Get transaction ID
+                        val transactionId = withContext(Dispatchers.IO) {
+                            database.transactionDao().getLastTransactionForUser(currentUserId).transaction_id
+                        }
+
+                        // Update user balance
+                        user.walletBalance -= product.price
+                        withContext(Dispatchers.IO) {
+                            userViewModel.updateUser(user)
+                        }
+
+                        // Get category name
+                        val category = withContext(Dispatchers.IO) {
+                            productViewModel.getCategoryById(product.category_id)
+                        }
+                        val categoryName = category?.category_name ?: "Unknown"
+
+                        // Generate random code
+                        val code = generateRandomCode()
+
+                        // Create mail
+                        val mail = Mail(
+                            user_id = currentUserId,
+                            transaction_id = transactionId,
+                            subject = "Purchase of ${categoryName}'s ${product.productName}",
+                            message = """Hi there,
+Thanks for your recent purchase of ${product.productName} from ${categoryName}. We hope you enjoy your experience!
+
+Heres the code for your game:
+Code: ${code}
+
+Use this code to top up your account!
+
+Best regards,
+— The FlowPay Team""",
+                            timestamp = System.currentTimeMillis(),
+                            isRead = false
+                        )
+                        withContext(Dispatchers.IO) {
+                            mailViewModel.createMail(mail)
+                        }
+
+                        runOnUiThread {
+                            walletBalanceView.text = "₱${String.format("%,.2f", user.walletBalance)}"
+                            hideConfirmationPanel()
+                            Toast.makeText(this@SearchActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this@SearchActivity, "Error processing purchase", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Insufficient balance", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }

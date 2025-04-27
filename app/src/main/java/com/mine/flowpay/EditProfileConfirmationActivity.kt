@@ -3,6 +3,7 @@ package com.mine.flowpay
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.widget.Button
 import android.widget.EditText
@@ -29,6 +30,7 @@ class EditProfileConfirmationActivity : AppCompatActivity() {
 
         // Set up views
         val txtPassword = findViewById<EditText>(R.id.edittext_password)
+        val passwordToggle = findViewById<ImageView>(R.id.password_visibility_toggle)
         btnContinue = findViewById(R.id.btn_continue)
         txtPasswordError = findViewById(R.id.txt_password_error)
         val txtCancel = findViewById<TextView>(R.id.txt_cancel)
@@ -41,6 +43,22 @@ class EditProfileConfirmationActivity : AppCompatActivity() {
         // Initially disable button
         updateButtonState()
 
+        // Password visibility toggle
+        passwordToggle.setOnClickListener {
+            // Toggle password visibility
+            if (txtPassword.inputType == (InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)) {
+                // Hide password
+                txtPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                passwordToggle.setImageResource(R.drawable.ic_hide)
+            } else {
+                // Show password
+                txtPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                passwordToggle.setImageResource(R.drawable.ic_unhide)
+            }
+            // Move cursor to the end
+            txtPassword.setSelection(txtPassword.text.length)
+        }
+
         // Password validation
         txtPassword.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -49,9 +67,6 @@ class EditProfileConfirmationActivity : AppCompatActivity() {
                 val password = s.toString()
                 if (password.isEmpty()) {
                     txtPasswordError.text = "Password is required"
-                    passwordIsGood = false
-                } else if (password != currentUser.password) {
-                    txtPasswordError.text = "Incorrect password"
                     passwordIsGood = false
                 } else {
                     txtPasswordError.text = ""
@@ -63,9 +78,16 @@ class EditProfileConfirmationActivity : AppCompatActivity() {
 
         // Continue button click
         btnContinue.setOnClickListener {
+            val password = txtPassword.text.toString()
+            if (password != currentUser.password) {
+                txtPasswordError.text = "Incorrect password"
+                passwordIsGood = false
+                updateButtonState()
+            } else {
             val intent = Intent(this, EditProfileActivity::class.java)
             startActivity(intent)
             finish()
+            }
         }
 
         // Cancel button click

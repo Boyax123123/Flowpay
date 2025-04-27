@@ -8,15 +8,23 @@ import androidx.lifecycle.ViewModelProvider
 import com.mine.flowpay.app.FlowpayApp
 import com.mine.flowpay.fragments.NavbarFragment
 import com.mine.flowpay.viewmodel.TransactionViewModel
+import com.mine.flowpay.viewmodel.ProductViewModel
+import com.mine.flowpay.viewmodel.ProductCategoryViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TransactionDetails : AppCompatActivity() {
     companion object {
         private const val MAIL_LIST_REQUEST_CODE = 100
     }
     private lateinit var transactionViewModel: TransactionViewModel
+    private lateinit var productViewModel: ProductViewModel
+    private lateinit var categoryViewModel: ProductCategoryViewModel
 
     // UI components
     private lateinit var backButton: ImageView
@@ -30,13 +38,19 @@ class TransactionDetails : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_transaction_details)
 
+        // Set header title
+        val headerTitle = findViewById<TextView>(R.id.tv_header_title)
+        headerTitle.text = "Transaction Details"
+
         // Set up navbar
         supportFragmentManager.beginTransaction()
             .replace(R.id.navbar_container, NavbarFragment())
             .commit()
 
-        // Initialize ViewModel
+        // Initialize ViewModels
         transactionViewModel = ViewModelProvider(this).get(TransactionViewModel::class.java)
+        productViewModel = ViewModelProvider(this).get(ProductViewModel::class.java)
+        categoryViewModel = ViewModelProvider(this).get(ProductCategoryViewModel::class.java)
 
         // Initialize views
         backButton = findViewById(R.id.iv_back)
@@ -52,12 +66,42 @@ class TransactionDetails : AppCompatActivity() {
             // Get transaction details
             val transaction = transactionViewModel.getTransactionById(transactionId)
             if (transaction != null) {
-                // Set transaction details
+                // Set initial transaction details
                 productNameView.text = transaction.type
-                priceView.text = "₱${transaction.amount}"
+                priceView.text = "₱${String.format("%.2f", transaction.amount)}"
                 transactionIdView.text = transaction.transaction_id.toString()
-                // Use transaction type as category
-                categoryView.text = transaction.type
+
+                // Find product by name and get its category
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val product = productViewModel.getProductByName(transaction.type)
+                        if (product != null) {
+                            // Get category name
+                            val category = categoryViewModel.getCategoryById(product.category_id)
+                            withContext(Dispatchers.Main) {
+                                categoryView.text = category?.category_name ?: "Unknown Category"
+                            }
+                        } else {
+                            // Try to parse category from transaction type
+                            val parts = transaction.type.split(" - ")
+                            if (parts.size > 1) {
+                                withContext(Dispatchers.Main) {
+                                    // If the type contains a separator, assume second part is the category
+                                    productNameView.text = parts[0]
+                                    categoryView.text = parts[1]
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    categoryView.text = "Unknown Category"
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            categoryView.text = "Unknown Category"
+                        }
+                    }
+                }
 
                 // Format date
                 val dateFormat = SimpleDateFormat("MM/dd/yy HH:mm", Locale.getDefault())
@@ -65,10 +109,8 @@ class TransactionDetails : AppCompatActivity() {
             }
         }
 
-        // Set up back button
-        backButton.setOnClickListener {
-            onBackPressed()
-        }
+        // Set header title and back button
+        findViewById<ImageView>(R.id.iv_back).setOnClickListener { onBackPressed() }
 
         // Set up navbar fragment with FlowpayApp instance
         val app = application as FlowpayApp

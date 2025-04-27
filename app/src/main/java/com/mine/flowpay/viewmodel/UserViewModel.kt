@@ -3,6 +3,7 @@ package com.mine.flowpay.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.mine.flowpay.data.Users
 import com.mine.flowpay.data.database.AppDatabase
@@ -12,12 +13,19 @@ import kotlinx.coroutines.launch
 
 class UserViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: UserRepository
-    val allUsers: List<Users>
+    private val _currentUser = MutableLiveData<Users>()
+    val currentUser: LiveData<Users> = _currentUser
 
     init {
         val database = (application as FlowpayApp).database
         repository = UserRepository(database.userDao())
-        allUsers = repository.getAllUsers()
+    }
+
+    fun loadUser(userId: Long) = viewModelScope.launch {
+        val user = repository.getUserById(userId)
+        user?.let {
+            _currentUser.value = it
+        }
     }
 
     fun insertUser(user: Users) = viewModelScope.launch {
@@ -26,6 +34,10 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateUser(user: Users) = viewModelScope.launch {
         repository.updateUser(user)
+        // Update LiveData if this is the current user
+        if (_currentUser.value?.user_id == user.user_id) {
+            _currentUser.value = user
+        }
     }
 
     fun deleteUser(user: Users) = viewModelScope.launch {
@@ -48,6 +60,10 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         user?.let {
             it.walletBalance = newBalance
             repository.updateUser(it)
+            // Update LiveData if this is the current user
+            if (_currentUser.value?.user_id == userId) {
+                _currentUser.value = it
+            }
         }
     }
 }

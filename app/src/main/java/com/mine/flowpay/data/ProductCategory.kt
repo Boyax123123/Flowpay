@@ -8,5 +8,5 @@ data class ProductCategory(
     @PrimaryKey(autoGenerate = true)
     val category_id: Long = 0,
     var category_name: String = "",
-    var image: Int = R.drawable.img_notfound,
+    var image: String = "img_notfound",
 )

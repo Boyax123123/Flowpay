@@ -9,6 +9,8 @@ import com.mine.flowpay.data.ProductCategory
 import com.mine.flowpay.data.database.AppDatabase
 import com.mine.flowpay.data.repository.ProductRepository
 import com.mine.flowpay.app.FlowpayApp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class ProductViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: ProductRepository
@@ -25,11 +27,15 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Product operations
-    fun getProductsByCategory(categoryId: Long) {
-        _allProducts.value = repository.getProductsByCategory(categoryId)
+    suspend fun getProductsByCategory(categoryId: Long): List<Product> {
+        return withContext(Dispatchers.IO) {
+            repository.getProductsByCategory(categoryId)
+        }
     }
 
-    fun getProductByName(productName: String) = repository.getProductByName(productName)
+    fun getProductByName(productName: String): Product? {
+        return repository.getProductByName(productName)
+    }
 
     // Category operations
     fun getCategoryWithProducts(categoryId: Long) = repository.getCategoryWithProducts(categoryId)

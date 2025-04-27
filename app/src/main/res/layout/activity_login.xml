@@ -17,9 +17,11 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Log In"
+            android:text="Login"
             android:textSize="43sp"
             android:textStyle="bold"
+            android:layout_marginTop="40dp"
+            android:layout_marginStart="20dp"
             android:layout_marginBottom="40dp" />
 
         <LinearLayout
@@ -42,7 +44,8 @@
                 android:hint="Enter email"
                 android:inputType="textEmailAddress"
                 android:padding="10dp"
-                android:background="@drawable/edittext_border" />
+                android:background="@drawable/edittext_border"
+                android:textColor="@color/black"/>
 
             <TextView
                 android:id="@+id/txt_email_error"
@@ -60,6 +63,10 @@
                 android:text="Password"
                 android:textSize="18sp" />
 
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
             <androidx.appcompat.widget.AppCompatEditText
                 android:id="@+id/edittext_password"
                 android:layout_width="match_parent"
@@ -67,7 +74,21 @@
                 android:hint="Enter password"
                 android:inputType="textPassword"
                 android:padding="10dp"
-                android:background="@drawable/edittext_border" />
+                android:background="@drawable/edittext_border"
+                android:textColor="@color/black"/>
+
+                <ImageView
+                    android:id="@+id/password_visibility_toggle"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="12dp"
+                    android:src="@drawable/ic_hide"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </RelativeLayout>
 
             <TextView
                 android:id="@+id/txt_password_error"

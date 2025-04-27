@@ -5,49 +5,30 @@
         android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F7FA"
+        android:background="@color/screen_background"
         tools:context=".SettingsActivity">
 
-    <!-- Back Button -->
-    <ImageView
-            android:id="@+id/btn_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_back"
-            android:contentDescription="Back button"
-            app:layout_constraintTop_toTopOf="@id/txt_settings_title"
-            app:layout_constraintBottom_toBottomOf="@id/txt_settings_title"
-            app:layout_constraintStart_toStartOf="parent"
-            android:layout_marginStart="16dp" />
+    <!-- Toolbar -->
+    <include
+        layout="@layout/include_header_toolbar"
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Title -->
+    <!-- Back Button -->
+
 
     <!-- Balance Card -->
-    <TextView
-            android:id="@+id/txt_settings_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Settings"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="#000000"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="40dp"
-            app:layout_constraintHorizontal_bias="0.95" />
-
     <androidx.cardview.widget.CardView
             android:id="@+id/card_balance"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:layout_constraintTop_toBottomOf="@id/txt_settings_title"
-            android:layout_marginTop="24dp"
-            android:layout_marginStart="28dp"
-            android:layout_marginEnd="28dp"
             app:cardCornerRadius="12dp"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="#FFFFFF"/>
+            app:cardBackgroundColor="#FFFFFF"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            android:layout_marginTop="16dp" />
 
     <!-- Menu Items -->
     <LinearLayout

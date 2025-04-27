@@ -99,7 +99,6 @@ class NavbarFragment : Fragment() {
 
         // Update icons based on current activity
         updateIcons()
-
         return view
     }
 

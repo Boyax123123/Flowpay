@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
@@ -51,8 +52,6 @@ class MailsActivity : AppCompatActivity() {
 
         // Initialize ViewModels
         mailViewModel = ViewModelProvider(this).get(MailViewModel::class.java)
-
-
 
         // Get user ID from FlowpayApp
         val app = application as FlowpayApp
@@ -106,11 +105,10 @@ class MailsActivity : AppCompatActivity() {
             )
         })
 
-        // Set up back button
-        backButton.setOnClickListener {
-            setResult(RESULT_OK)
-            finish()
-        }
+        // Set header title and back button
+        val headerTitle = findViewById<TextView>(R.id.tv_header_title)
+        headerTitle.text = "Mails"
+        findViewById<ImageView>(R.id.iv_back).setOnClickListener { onBackPressed() }
 
         // Set up mail observer
         mailObserver = androidx.lifecycle.Observer<Int> { count ->

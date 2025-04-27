@@ -30,15 +30,8 @@ class ProductAdapter(
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     val product = products[position]
-                    // Toggle selection if clicking the same product
-                    if (product == selectedProduct) {
-                        selectedProduct = null
-                        notifyDataSetChanged()
-                    } else {
-                        selectedProduct = product
-                        onProductSelected(product)
-                        notifyDataSetChanged()
-                    }
+                    // Always notify the activity through onProductSelected
+                    onProductSelected(product)
                 }
             }
 
@@ -69,12 +62,17 @@ class ProductAdapter(
         holder.priceView.visibility = View.VISIBLE
         holder.priceView.text = "₱${product.price}"
 
-        // Hide product image as per requirements
-        holder.productImage.visibility = View.GONE
+        // Show product image for COD Mobile, otherwise hide as before
+        if ((product.productName?.contains("COD", ignoreCase = true) == true || product.productName?.contains("Call of Duty", ignoreCase = true) == true) && holder.productImage != null) {
+            holder.productImage.visibility = View.VISIBLE
+            holder.productImage.setImageResource(R.drawable.img_cod)
+        } else {
+            holder.productImage.visibility = View.GONE
+        }
 
         // Update selection state
         holder.cardView.setBackgroundResource(
-            if (selectedProduct?.product_id == product.product_id) R.drawable.product_card_selected_orange
+            if (selectedProduct?.product_id == product.product_id) R.drawable.product_card_selected_green
             else R.drawable.product_card_background
         )
 
@@ -101,4 +99,10 @@ class ProductAdapter(
     }
 
     fun getSelectedProduct(): Product? = selectedProduct
+
+    // Unselect product
+    fun clearSelectedProduct() {
+        selectedProduct = null
+        notifyDataSetChanged()
+    }
 } 

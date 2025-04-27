@@ -19,37 +19,47 @@
             android:layout_marginTop="32dp"
             android:layout_marginStart="28dp" />
 
-    <!-- Wallet Balance -->
-    <TextView
-            android:id="@+id/tv_wallet_balance"
+    <!-- Wallet section -->
+    <LinearLayout
+            android:id="@+id/wallet_section"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:textColor="@android:color/black"
-            android:layout_marginEnd="8dp"
-            android:text="₱0.00"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="8dp"
             app:layout_constraintTop_toTopOf="@id/text_title"
             app:layout_constraintBottom_toBottomOf="@id/text_title"
-            app:layout_constraintEnd_toStartOf="@+id/wallet_icon" />
+            app:layout_constraintEnd_toStartOf="@id/mail_icon"
+            android:layout_marginEnd="8dp">
 
-    <!-- Wallet Icon -->
-    <ImageView
-            android:id="@+id/wallet_icon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="8dp"
-            android:src="@drawable/ic_wallet"
-            android:contentDescription="Wallet"
-            app:layout_constraintTop_toTopOf="@id/text_title"
-            app:layout_constraintBottom_toBottomOf="@id/text_title"
-            app:layout_constraintEnd_toStartOf="@+id/mail_icon" />
+        <TextView
+                android:id="@+id/tv_balance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₱ 0.00"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+
+        <ImageView
+                android:id="@+id/iv_wallet"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_wallet"
+                android:contentDescription="wallet" />
+
+    </LinearLayout>
 
     <!-- Mail Icon -->
     <ImageView
             android:id="@+id/mail_icon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="28dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="16dp"
             android:src="@drawable/ic_mail"
             android:contentDescription="Mail"
             app:layout_constraintTop_toTopOf="@id/text_title"

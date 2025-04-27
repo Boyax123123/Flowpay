@@ -3,6 +3,7 @@ package com.mine.flowpay.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.mine.flowpay.data.ProductCategory
 import com.mine.flowpay.data.database.AppDatabase
@@ -12,12 +13,13 @@ import kotlinx.coroutines.launch
 
 class ProductCategoryViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: ProductCategoryRepository
-    val allCategories: List<ProductCategory>
+    private val _allCategories = MutableLiveData<List<ProductCategory>>()
+    val allCategories: LiveData<List<ProductCategory>> = _allCategories
 
     init {
         val database = (application as FlowpayApp).database
         repository = ProductCategoryRepository(database.categoryDao())
-        allCategories = repository.getAllCategories()
+        loadCategories()
     }
 
     fun insertCategory(category: ProductCategory) = viewModelScope.launch {
@@ -37,4 +39,8 @@ class ProductCategoryViewModel(application: Application) : AndroidViewModel(appl
     fun getCategoryWithProducts(categoryId: Long) = repository.getCategoryWithProducts(categoryId)
 
     fun getAllCategoriesWithProducts() = repository.getAllCategoriesWithProducts()
+
+    private fun loadCategories() = viewModelScope.launch {
+        _allCategories.value = repository.getAllCategories()
+    }
 } 

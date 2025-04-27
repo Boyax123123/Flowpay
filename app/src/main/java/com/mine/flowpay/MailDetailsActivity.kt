@@ -40,6 +40,10 @@ class MailDetailsActivity : AppCompatActivity() {
             return
         }
 
+        // Set header title
+        val headerTitle = findViewById<TextView>(R.id.tv_title)
+        headerTitle.text = "Mail Details"
+
         // Initialize ViewModels
         mailViewModel = ViewModelProvider(this).get(MailViewModel::class.java)
         productViewModel = ViewModelProvider(this).get(ProductViewModel::class.java)

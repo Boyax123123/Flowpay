@@ -8,4 +8,5 @@ class BaseRepository(private val database: AppDatabase) {
     val transactionRepository by lazy { TransactionRepository(database.transactionDao()) }
     val mailRepository by lazy { MailRepository(database.mailDao()) }
     val wishlistRepository by lazy { WishlistRepository(database.wishlistDao()) }
-} 
+    val depositRepository by lazy { DepositRepository(database.depositDao()) }
+}

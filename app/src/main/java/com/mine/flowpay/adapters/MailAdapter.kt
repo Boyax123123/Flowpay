@@ -8,9 +8,6 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.mine.flowpay.R
 import com.mine.flowpay.data.Mail
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class MailAdapter(
     private val mails: List<Mail>,
@@ -56,6 +53,5 @@ class MailAdapter(
         // Show/hide unread indicator
         holder.unreadIndicator.visibility = if (!mail.isRead) View.VISIBLE else View.GONE
     }
-
     override fun getItemCount() = mails.size
 }

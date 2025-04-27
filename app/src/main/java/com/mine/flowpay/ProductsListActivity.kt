@@ -1,8 +1,13 @@
 package com.mine.flowpay
 
+import android.app.Dialog
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.Window
 import android.widget.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +26,7 @@ import com.mine.flowpay.data.Transaction
 import com.mine.flowpay.data.Wishlist
 import com.mine.flowpay.data.Mail
 import com.mine.flowpay.utils.DialogUtils
+import com.mine.flowpay.utils.SortButtonsHandler
 import com.mine.flowpay.viewmodel.ProductViewModel
 import com.mine.flowpay.viewmodel.TransactionViewModel
 import com.mine.flowpay.viewmodel.UserViewModel
@@ -37,6 +43,7 @@ class ProductsListActivity : AppCompatActivity() {
     private lateinit var wishlistViewModel: WishlistViewModel
     private lateinit var transactionViewModel: TransactionViewModel
     private lateinit var mailViewModel: MailViewModel
+    private lateinit var sortButtonsHandler: SortButtonsHandler
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var categoryTitleView: TextView
@@ -49,10 +56,12 @@ class ProductsListActivity : AppCompatActivity() {
     private lateinit var errorMessageView: TextView
     private lateinit var walletIcon: ImageView
     private lateinit var mailIcon: ImageView
+    private lateinit var categoryBackgroundView: ImageView
 
     private var currentUserId: Long = -1
     private var selectedProduct: Product? = null
     private val wishlistedProducts = mutableSetOf<Long>()
+    private var categoryProducts = listOf<Product>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,9 +91,13 @@ class ProductsListActivity : AppCompatActivity() {
         errorMessageView = findViewById(R.id.tv_error_message)
         walletIcon = findViewById(R.id.wallet_icon)
         mailIcon = findViewById(R.id.mail_icon)
+        categoryBackgroundView = findViewById(R.id.category_background)
 
         // Set category title
         categoryTitleView.text = categoryName
+        
+        // Set category background image
+        setCategoryBackgroundImage(categoryName)
 
         // Initially hide confirmation panel and error message
         confirmationPanel.visibility = View.GONE
@@ -123,13 +136,21 @@ class ProductsListActivity : AppCompatActivity() {
         // Set up RecyclerView with 2 columns
         recyclerView.layoutManager = GridLayoutManager(this, 2)
 
-        // Load and observe products for the selected category
-        productViewModel.getProductsByCategory(categoryId)
-        productViewModel.allProducts.observe(this, Observer { products ->
-            if (products != null) {
+        // Set up the sort buttons
+        setupSortButtons()
+
+        // Load products for the selected category
+        CoroutineScope(Dispatchers.IO).launch {
+            val products = productViewModel.getProductsByCategory(categoryId)
+            categoryProducts = products
+            withContext(Dispatchers.Main) {
+                // Update sort buttons with the loaded products
+                if (::sortButtonsHandler.isInitialized) {
+                    sortButtonsHandler.updateProducts(products)
+                }
                 updateAdapter(products)
             }
-        })
+        }
 
         // Load wishlist items for current user
         wishlistViewModel.getUserWishlist(currentUserId)
@@ -138,9 +159,12 @@ class ProductsListActivity : AppCompatActivity() {
             wishlist.forEach { item ->
                 wishlistedProducts.add(item.product_id)
             }
-            // Get current products and update adapter
-            productViewModel.allProducts.value?.let { products ->
-                updateAdapter(products)
+            // Get products for the current category and update adapter
+            CoroutineScope(Dispatchers.IO).launch {
+                val products = productViewModel.getProductsByCategory(categoryId)
+                withContext(Dispatchers.Main) {
+                    updateAdapter(products)
+                }
             }
         })
 
@@ -228,7 +252,7 @@ Best regards,
 
         // Set up back button
         backButton.setOnClickListener {
-            finish()
+            onBackPressed()
         }
 
         // Set up wallet icon click listener
@@ -243,8 +267,8 @@ Best regards,
     }
 
     private fun updateAdapter(products: List<Product>) {
-
-        recyclerView.adapter = ProductAdapter(products, 
+        recyclerView.adapter = ProductAdapter(
+            products,
             onProductSelected = { product -> onProductSelected(product) },
             onWishlistClicked = { product -> toggleWishlist(product) },
             isInWishlist = { product -> wishlistedProducts.contains(product.product_id) }
@@ -252,22 +276,18 @@ Best regards,
     }
 
     private fun onProductSelected(product: Product) {
-        // Show confirmation panel
-        confirmationPanel.visibility = View.VISIBLE
-
-        // Update selected product info
-        selectedProduct = product
-        selectedProductView.text = "${product.productName} • E-Wallet"
-        selectedPriceView.text = "₱${product.price}"
-
-        // Update buy button state based on current balance
-        val user = (application as FlowpayApp).loggedInuser
-        if (user != null) {
-            updateBuyButtonState(user.walletBalance, product.price)
+        if (selectedProduct == product) {
+            // Deselect: panel should disappear immediately
+            selectedProduct = null
+            hideConfirmationPanel()
+            (recyclerView.adapter as? ProductAdapter)?.setSelectedProduct(null)
+        } else {
+            // Select: show panel and update info
+            selectedProduct = product
+            showConfirmationPanel(product)
+            (recyclerView.adapter as? ProductAdapter)?.setSelectedProduct(product)
         }
-
-        // Update product card background
-        (recyclerView.adapter as? ProductAdapter)?.setSelectedProduct(product)
+        updateConfirmationPanelVisibility()
     }
 
     private fun updateBuyButtonState(userBalance: Double, productPrice: Double) {
@@ -349,6 +369,209 @@ Best regards,
         mailViewModel.hasPurchaseMail.removeObservers(this)
         mailViewModel.hasPurchaseMail.observe(this) { hasPurchaseMail ->
             updateMailIcon(mailViewModel.unreadMailCount.value ?: 0, hasPurchaseMail)
+        }
+    }
+
+    private fun setupSortButtons() {
+        // Initialize sort buttons if they exist in the layout
+        val btnSortPopular = findViewById<Button>(R.id.btn_sort_popular)
+        val btnSortHighLow = findViewById<Button>(R.id.btn_sort_high_low)
+        val btnSortLowHigh = findViewById<Button>(R.id.btn_sort_low_high)
+        val btnSortAZ = findViewById<Button>(R.id.btn_sort_a_z)
+        
+        // Only proceed if all buttons exist in the layout
+        if (btnSortPopular != null && btnSortHighLow != null && btnSortLowHigh != null && btnSortAZ != null) {
+            // Get transaction repository
+            val transactionRepository = transactionViewModel.getTransactionRepository()
+            
+            // Create the sort buttons handler
+            sortButtonsHandler = SortButtonsHandler(
+                btnSortPopular,
+                btnSortHighLow,
+                btnSortLowHigh,
+                btnSortAZ,
+                transactionRepository
+            ) { sortedProducts ->
+                // Update the RecyclerView with sorted products
+                updateAdapter(sortedProducts)
+            }
+        }
+    }
+
+    /**
+     * Set the background image for the category
+     * The image resource follows the pattern: img_[category]_bg
+     * Category name is converted to lowercase and spaces are replaced with underscores
+     */
+    private fun setCategoryBackgroundImage(categoryName: String) {
+        // Format the category name to match resource naming conventions
+        val formattedCategoryName = categoryName.lowercase().replace(" ", "_")
+        
+        // Map of common game names to their abbreviations as they appear in file names
+        val abbreviationMap = mapOf(
+            "mobile_legends" to "ml",
+            "league_of_legends" to "lol",
+            "valorant" to "valo",
+            "call_of_duty" to "cod",
+            "wild_rift" to "wildrift",
+            "pubg_mobile" to "pubg",
+            "genshin_impact" to "genshin",
+            "zenless_zone_zero" to "zenless",
+            "honkai_star_rail" to "star_rail"
+        )
+        
+        // Check if we have an abbreviation for this category
+        val categoryCode = abbreviationMap[formattedCategoryName] ?: formattedCategoryName
+        
+        // Create the drawable resource name - using the existing pattern observed in drawable folder
+        val backgroundResourceName = "img_${categoryCode}_bg"
+        
+        // Get the resource ID
+        val resourceId = resources.getIdentifier(
+            backgroundResourceName,
+            "drawable",
+            packageName
+        )
+        
+        // Set the background image if resource exists, otherwise use a default background
+        if (resourceId != 0) {
+            categoryBackgroundView.setImageResource(resourceId)
+        } else {
+            // Try with the original formatted name as a fallback
+            if (categoryCode != formattedCategoryName) {
+                val fallbackResourceName = "img_${formattedCategoryName}_bg"
+                val fallbackResourceId = resources.getIdentifier(
+                    fallbackResourceName,
+                    "drawable",
+                    packageName
+                )
+                
+                if (fallbackResourceId != 0) {
+                    categoryBackgroundView.setImageResource(fallbackResourceId)
+                    return
+                }
+            }
+            
+            // Use a default background image if the specific one doesn't exist
+            // We'll use img_notfound.png as our fallback since it already exists
+            categoryBackgroundView.setImageResource(R.drawable.img_notfound)
+            
+            // Log a message about the missing resource
+            android.util.Log.d("ProductsListActivity", "Background image not found: $backgroundResourceName")
+        }
+    }
+
+    private fun showConfirmationPanel(product: Product) {
+        confirmationPanel.visibility = View.VISIBLE
+        findViewById<TextView>(R.id.tv_selected_product).text = product.productName
+        findViewById<TextView>(R.id.tv_selected_price).text = "₱${product.price}"
+        findViewById<TextView>(R.id.tv_error_message).visibility = View.GONE
+        val user = (application as FlowpayApp).loggedInuser
+        val buyBtn = findViewById<Button>(R.id.btn_buy)
+        if (user != null && user.walletBalance >= product.price) {
+            buyBtn.isEnabled = true
+            buyBtn.alpha = 1.0f
+        } else {
+            buyBtn.isEnabled = false
+            buyBtn.alpha = 0.5f
+            findViewById<TextView>(R.id.tv_error_message).visibility = View.VISIBLE
+        }
+        buyBtn.setOnClickListener {
+            // Place purchase logic here
+            purchaseSelectedProduct()
+        }
+    }
+
+    private fun hideConfirmationPanel() {
+        confirmationPanel.visibility = View.GONE
+    }
+
+    private fun updateConfirmationPanelVisibility() {
+        if (selectedProduct == null) {
+            hideConfirmationPanel()
+        } else {
+            showConfirmationPanel(selectedProduct!!)
+        }
+    }
+
+    private fun purchaseSelectedProduct() {
+        selectedProduct?.let { product ->
+            val user = (application as FlowpayApp).loggedInuser
+            if (user != null && user.walletBalance >= product.price) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val database = (application as FlowpayApp).database
+
+                        // Create transaction
+                        val transaction = Transaction(
+                            userId = currentUserId,
+                            type = product.productName,
+                            amount = product.price,
+                            timestamp = System.currentTimeMillis()
+                        )
+                        // Insert transaction
+                        withContext(Dispatchers.IO) {
+                            database.transactionDao().createTransaction(transaction)
+                        }
+
+                        // Get transaction ID
+                        val transactionId = withContext(Dispatchers.IO) {
+                            database.transactionDao().getLastTransactionForUser(currentUserId).transaction_id
+                        }
+
+                        // Update user balance
+                        user.walletBalance -= product.price
+                        withContext(Dispatchers.IO) {
+                            userViewModel.updateUser(user)
+                        }
+
+                        // Get category name
+                        val category = withContext(Dispatchers.IO) {
+                            productViewModel.getCategoryById(product.category_id)
+                        }
+                        val categoryName = category?.category_name ?: "Unknown"
+
+                        // Generate random code
+                        val code = generateRandomCode()
+
+                        // Create mail
+                        val mail = Mail(
+                            user_id = currentUserId,
+                            transaction_id = transactionId,
+                            subject = "Purchase of ${categoryName}'s ${product.productName}",
+                            message = """Hi there,
+Thanks for your recent purchase of ${product.productName} from ${categoryName}. We hope you enjoy your experience!
+
+Heres the code for your game:
+Code: ${code}
+
+Use this code to top up your account!
+
+Best regards,
+— The FlowPay Team""",
+                            timestamp = System.currentTimeMillis(),
+                            isRead = false
+                        )
+                        withContext(Dispatchers.IO) {
+                            mailViewModel.createMail(mail)
+                        }
+
+                        runOnUiThread {
+                            // Update balance display with commas and two decimal points
+                            val formattedBalance = String.format("%,.2f", user.walletBalance)
+                            walletBalanceView.text = "₱$formattedBalance"
+                            confirmationPanel.visibility = View.GONE
+                            Toast.makeText(this@ProductsListActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this@ProductsListActivity, "Error processing purchase", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Insufficient balance", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }

@@ -13,9 +13,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var userViewModel: UserViewModel
     private lateinit var currentUser: Users
 
-    // UI components
-    private lateinit var settingsTitleTextView: TextView
-
     // Menu items
     private lateinit var editProfileMenu: LinearLayout
     private lateinit var aboutUsMenu: LinearLayout
@@ -44,16 +41,13 @@ class SettingsActivity : AppCompatActivity() {
         // Set up click listeners
         setupClickListeners()
 
-        // Set up back button
-        findViewById<ImageView>(R.id.btn_back).setOnClickListener {
-            onBackPressed()
-        }
+        // Set header title
+        val headerTitle = findViewById<TextView>(R.id.tv_header_title)
+        headerTitle.text = "Settings"
+        findViewById<ImageView>(R.id.iv_back).setOnClickListener { onBackPressed() }
     }
 
     private fun initializeViews() {
-        // Find views by ID
-        settingsTitleTextView = findViewById(R.id.txt_settings_title)
-
         // Menu items
         editProfileMenu = findViewById(R.id.menu_edit_profile)
         aboutUsMenu = findViewById(R.id.menu_about_us)

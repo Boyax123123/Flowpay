@@ -1,8 +1,13 @@
 package com.mine.flowpay
 
+import android.app.Dialog
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.Window
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -69,8 +74,8 @@ class LikesActivity : AppCompatActivity() {
 
         // Initialize views
         recyclerView = findViewById(R.id.rv_liked_products)
-        walletBalanceView = findViewById(R.id.tv_wallet_balance)
-        walletIcon = findViewById(R.id.wallet_icon)
+        walletBalanceView = findViewById(R.id.tv_balance)
+        walletIcon = findViewById(R.id.iv_wallet)
         mailIcon = findViewById(R.id.mail_icon)
         confirmationPanel = findViewById(R.id.confirmation_panel)
         selectedProductView = findViewById(R.id.tv_selected_product)
@@ -93,7 +98,7 @@ class LikesActivity : AppCompatActivity() {
 
         // Set up click listeners
         walletIcon.setOnClickListener {
-            startActivity(Intent(this, ProfileActivity::class.java))
+            startActivity(Intent(this, WalletActivity::class.java))
         }
 
         mailIcon.setOnClickListener {
@@ -114,87 +119,6 @@ class LikesActivity : AppCompatActivity() {
         // Observe purchase mail status
         mailViewModel.hasPurchaseMail.observe(this) { hasPurchaseMail ->
             updateMailIcon(mailViewModel.unreadMailCount.value ?: 0, hasPurchaseMail)
-        }
-
-        // Set up buy button
-        buyButton.setOnClickListener {
-            selectedProduct?.let { product ->
-                val user = (application as FlowpayApp).loggedInuser
-                if (user != null && user.walletBalance >= product.price) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val database = (application as FlowpayApp).database
-
-                            // Create transaction
-                            val transaction = Transaction(
-                                userId = currentUserId,
-                                type = product.productName,
-                                amount = product.price,
-                                timestamp = System.currentTimeMillis()
-                            )
-
-                            // Insert transaction
-                            withContext(Dispatchers.IO) {
-                                transactionViewModel.createTransaction(transaction)
-                            }
-
-                            // Get transaction ID
-                            val transactionId = withContext(Dispatchers.IO) {
-                                database.transactionDao().getLastTransactionForUser(currentUserId).transaction_id
-                            }
-
-                            // Update user balance
-                            user.walletBalance -= product.price
-                            withContext(Dispatchers.IO) {
-                                userViewModel.updateUser(user)
-                            }
-
-                            // Get category name
-                            val category = withContext(Dispatchers.IO) {
-                                productViewModel.getCategoryById(product.category_id)
-                            }
-                            val categoryName = category?.category_name ?: "Unknown"
-
-                            // Generate random code
-                            val code = generateRandomCode()
-
-                            // Create mail
-                            val mail = Mail(
-                                user_id = currentUserId,
-                                transaction_id = transactionId,
-                                subject = "Purchase of ${categoryName}'s ${product.productName}",
-                                message = """Hi there,
-Thanks for your recent purchase of ${product.productName} from ${categoryName}. We hope you enjoy your experience!
-
-Heres the code for your game:
-Code: ${code}
-
-Use this code to top up your account!
-
-Best regards,
-— The FlowPay Team""",
-                                timestamp = System.currentTimeMillis(),
-                                isRead = false
-                            )
-                            withContext(Dispatchers.IO) {
-                                mailViewModel.createMail(mail)
-                            }
-
-                            runOnUiThread {
-                                walletBalanceView.text = "₱${String.format("%,.2f", user.walletBalance)}"
-                                confirmationPanel.visibility = View.GONE
-                                Toast.makeText(this@LikesActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
-                            }
-                        } catch (e: Exception) {
-                            runOnUiThread {
-                                Toast.makeText(this@LikesActivity, "Error processing purchase", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                } else {
-                    Toast.makeText(this, "Insufficient balance", Toast.LENGTH_SHORT).show()
-                }
-            }
         }
 
         // Load all products
@@ -238,27 +162,119 @@ Best regards,
 
     private fun onProductSelected(product: Product) {
         if (selectedProduct == product) {
-            // If the same product is selected, hide the panel and deselect
-            confirmationPanel.visibility = View.GONE
+            hideConfirmationPanel()
             selectedProduct = null
-            (recyclerView.adapter as? ProductAdapter)?.setSelectedProduct(null)
-        } else {
-            // Show confirmation panel
-            confirmationPanel.visibility = View.VISIBLE
-
-            // Update selected product info
-            selectedProduct = product
-            selectedProductView.text = "${product.productName} • E-Wallet"
-            selectedPriceView.text = "₱${product.price}"
-
-            // Update buy button state based on current balance
-            val user = (application as FlowpayApp).loggedInuser
-            if (user != null) {
-                updateBuyButtonState(user.walletBalance, product.price)
+            (recyclerView.adapter as? ProductAdapter)?.apply {
+                setSelectedProduct(null)
+                notifyDataSetChanged() // Force immediate UI update
             }
-
-            // Update product card background
+        } else {
+            showConfirmationPanel(product)
+            selectedProduct = product
             (recyclerView.adapter as? ProductAdapter)?.setSelectedProduct(product)
+        }
+    }
+
+    private fun showConfirmationPanel(product: Product) {
+        confirmationPanel.visibility = View.VISIBLE
+        selectedProductView.text = "${product.productName} • E-Wallet"
+        selectedPriceView.text = "₱${product.price}"
+        errorMessageView.visibility = View.GONE
+        val user = (application as FlowpayApp).loggedInuser
+        if (user != null && user.walletBalance >= product.price) {
+            buyButton.isEnabled = true
+            buyButton.alpha = 1.0f
+        } else {
+            buyButton.isEnabled = false
+            buyButton.alpha = 0.5f
+            errorMessageView.visibility = View.VISIBLE
+        }
+        buyButton.setOnClickListener {
+            purchaseSelectedProduct()
+        }
+    }
+
+    private fun hideConfirmationPanel() {
+        confirmationPanel.visibility = View.GONE
+    }
+
+    private fun purchaseSelectedProduct() {
+        selectedProduct?.let { product ->
+            val user = (application as FlowpayApp).loggedInuser
+            if (user != null && user.walletBalance >= product.price) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val database = (application as FlowpayApp).database
+
+                        // Create transaction
+                        val transaction = Transaction(
+                            userId = currentUserId,
+                            type = product.productName,
+                            amount = product.price,
+                            timestamp = System.currentTimeMillis()
+                        )
+
+                        // Insert transaction
+                        withContext(Dispatchers.IO) {
+                            transactionViewModel.createTransaction(transaction)
+                        }
+
+                        // Get transaction ID
+                        val transactionId = withContext(Dispatchers.IO) {
+                            database.transactionDao().getLastTransactionForUser(currentUserId).transaction_id
+                        }
+
+                        // Update user balance
+                        user.walletBalance -= product.price
+                        withContext(Dispatchers.IO) {
+                            userViewModel.updateUser(user)
+                        }
+
+                        // Get category name
+                        val category = withContext(Dispatchers.IO) {
+                            productViewModel.getCategoryById(product.category_id)
+                        }
+                        val categoryName = category?.category_name ?: "Unknown"
+
+                        // Generate random code
+                        val code = generateRandomCode()
+
+                        // Create mail
+                        val mail = Mail(
+                            user_id = currentUserId,
+                            transaction_id = transactionId,
+                            subject = "Purchase of ${categoryName}'s ${product.productName}",
+                            message = """Hi there,
+Thanks for your recent purchase of ${product.productName} from ${categoryName}. We hope you enjoy your experience!
+
+Heres the code for your game:
+Code: ${code}
+
+Use this code to top up your account!
+
+Best regards,
+— The FlowPay Team""",
+                            timestamp = System.currentTimeMillis(),
+                            isRead = false
+                        )
+                        withContext(Dispatchers.IO) {
+                            mailViewModel.createMail(mail)
+                        }
+
+                        runOnUiThread {
+                            walletBalanceView.text = "₱${String.format("%,.2f", user.walletBalance)}"
+                            hideConfirmationPanel()
+                            Toast.makeText(this@LikesActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this@LikesActivity, "Error processing purchase", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Insufficient balance", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -272,12 +288,6 @@ Best regards,
             .map { chars[random.nextInt(chars.length)] }
             .joinToString("")
         return "$firstPart-$secondPart"
-    }
-
-    private fun updateBuyButtonState(userBalance: Double, productPrice: Double) {
-        val canBuy = userBalance >= productPrice
-        buyButton.isEnabled = canBuy
-        errorMessageView.visibility = if (canBuy) View.GONE else View.VISIBLE
     }
 
     private fun toggleWishlist(product: Product) {
